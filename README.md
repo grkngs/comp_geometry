@@ -1,3 +1,3 @@
 # comp_geometry
-Computational Geometry Project__
+Computational Geometry Project <br />
 Simulation of Delaunay Triangulation with Randomized Incremental Algorithm
