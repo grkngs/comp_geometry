@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<head>
+<style>
+    body {
+        width: 960px;
+        height: 500px;
+        position: relative;
+		
+    }
+	
+</style>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+</head>
+<body>
+	<label for="n">Number of points:</label><br>
+	<input type="text" id="n" name="n" value="0"><br>
+	<button type="button" id="run">Create Random Points and Run</button>
+
+	<button type="button" id="insert">Insert a Point</button>
+	<button type="button" id="run2">Run for manually inserted points</button>
+<script>
+class Point {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.z = 0.0;
+    this.w = 1.0;
+  }
+  equal(p2) {
+	  
+    if(this.x == p2.x && this.y==p2.y)
+    return true;
+    else 
+	return false;
+  }
+  
+}
+class Edge{
+	constructor(p1,p2){
+		this.p1 = p1;
+		this.p2 = p2;
+		this.t1 = null;
+		this.t2 = null;
+	}
+	equal(edge2){
+		if((this.p1.equal(edge2.p1) && this.p2.equal(edge2.p2)) || (this.p2.equal(edge2.p1) && this.p1.equal(edge2.p2)))
+		return true;
+	}
+	setT1(tt){
+		this.t1 = tt;
+	}
+	setT2(tt){
+		this.t2 = tt;
+	}
+	containsPoint(p){
+		if(this.p1.equal(p) || this.p2.equal(p))
+		return true;
+		else
+		return false;
+	}
+	intersects(edge){
+		if(this.p1.equal(edge.p1) || this.p1.equal(edge.p2) || this.p2.equal(edge.p1) || this.p2.equal(edge.p2))
+		return true;
+		else
+		return false;
+	}
+	getOtherTriangle(tt){
+		if(this.t1!=null && tt.equal(this.t1))
+		return this.t2;
+		else if(this.t2!=null && tt.equal(this.t2))
+		return this.t1;
+
+		return null;
+	}
+}
+class Triangle {
+	constructor(edge1, edge2, edge3, p1, p2, p3){
+		this.edge1 = edge1;
+		this.edge2 = edge2;
+		this.edge3 = edge3;
+		this.p1 = p1;
+		this.p2 = p2;
+		this.p3 = p3;
+		this.adT1=null;
+		this.adT2=null;
+		this.adT3=null;
+		this.activity = true;
+		this.index=null;
+	}
+	equal(triangle2){
+		if(this.p1.equal(triangle2.p1)){
+			if(this.p2.equal(triangle2.p2)){
+				if(this.p3.equal(triangle2.p3)){
+				return true;
+			}
+			else{
+				return false;
+			}
+			}
+			else if(this.p2.equal(triangle2.p3)){
+				if(this.p3.equal(triangle2.p2)){
+				return true;
+			}
+			else{
+				return false;
+			}
+			}
+			else
+			return false;
+		}
+		else if(this.p1.equal(triangle2.p2)){
+			
+			if(this.p2.equal(triangle2.p3)){
+				if(this.p3.equal(triangle2.p1)){
+				return true;
+			}
+			else{
+				return false;
+			}
+			}
+			else if(this.p2.equal(triangle2.p1)){
+				if(this.p3.equal(triangle2.p3)){
+				return true;
+			}
+			else{
+				return false;
+			}
+			}
+			else{
+				return false;
+			}
+		}
+		else if(this.p1.equal(triangle2.p3)){
+			if(this.p2.equal(triangle2.p1)){
+				if(this.p3.equal(triangle2.p2)){
+				return true;
+			}
+			else{
+				return false;
+			}
+			}
+			else if(this.p2.equal(triangle2.p2)){
+				if(this.p3.equal(triangle2.p1)){
+				return true;
+			}
+			else{
+				return false;
+			}
+			}
+			else{
+				return false;
+			}
+		}
+		else{
+			return false;
+		}
+	}
+	setEdges(e1,e2,e3){
+		this.edge1 = e1;
+		this.edge2 = e2;
+		this.edge3 = e3;
+	}
+	activate(){
+		this.activity = true;
+	}
+	deactivate(){
+		this.activity = false;
+	}
+	getFrontPoint(edge){
+		if(edge.equal(this.edge1)){
+			if(this.edge2.p1.equal(edge.p1) || this.edge2.p1.equal(edge.p2)){
+				return this.edge2.p2
+			}
+			else if(this.edge2.p2.equal(edge.p1) || this.edge2.p2.equal(edge.p2)){
+				return this.edge2.p1
+			}
+		}
+		else if(edge.equal(this.edge2)){
+			if(this.edge1.p1.equal(edge.p1) || this.edge1.p1.equal(edge.p2)){
+				return this.edge1.p2
+			}
+			else if(this.edge1.p2.equal(edge.p1) || this.edge1.p2.equal(edge.p2)){
+				return this.edge1.p1
+			}
+		}
+		else if(edge.equal(this.edge3)){
+			if(this.edge1.p1.equal(edge.p1) || this.edge1.p1.equal(edge.p2)){
+				return this.edge1.p2
+			}
+			else if(this.edge1.p2.equal(edge.p1) || this.edge1.p2.equal(edge.p2)){
+				return this.edge1.p1
+			}
+		}
+
+	}
+
+	getEdge(p1,p2){
+		if((this.edge1.p1.equal(p1) && this.edge1.p2.equal(p2)) || (this.edge1.p2.equal(p1) && this.edge1.p1.equal(p2)))
+			return this.edge1;
+		else if((this.edge2.p1.equal(p1) && this.edge2.p2.equal(p2)) || (this.edge2.p2.equal(p1) && this.edge2.p1.equal(p2)))
+			return this.edge2;
+		else if((this.edge3.p1.equal(p1) && this.edge3.p2.equal(p2)) || (this.edge3.p2.equal(p1) && this.edge3.p1.equal(p2)))
+			return this.edge3;
+		else
+			return null;
+	}
+	
+}
+	
+    var width = 960,
+        height = 500;
+
+    var zoom = d3.zoom()
+        .on( 'zoom', zoomed );
+
+    var canvas = d3.select( 'body' )
+        .append( 'canvas' )
+        .attr( 'width', width )
+        .attr( 'height', height )
+        .call( zoom );
+var X = [],
+    Y = [],
+    arr = [],
+    arr2 = [],
+    n=0,
+    t_size=0,
+	draw_size=0,
+	 T = [],
+    i;
+    var gl = canvas.node().getContext( 'webgl' );
+    var shader = basic_shader(gl);
+var vertex_buffer = gl.createBuffer();
+var run = document.getElementById("run");
+	X = [];
+    Y = [];
+    arr = [];
+    arr2 = [];
+    t_size=0;
+	draw_size=0;
+	 T = [];
+    run.addEventListener("click", function() {
+	n = parseInt(document.getElementById("n").value);
+	initialize_gl(0);
+    set_transform( 1, 0, 0 );
+    triangulate();
+        });
+
+var insert = document.getElementById("insert");
+insert.addEventListener("click", function() {
+	var p = new Point(gaussianRand(),gaussianRand());
+  		arr2.push(p);
+  		arr.push(p.x);
+  		arr.push(p.y);
+  		arr.push(0.0);
+  		arr.push(1.0);
+	n+=1;
+	initialize_gl(1);
+    set_transform( 1, 0, 0 );
+        });
+
+		var run2 = document.getElementById("run2");
+run2.addEventListener("click", function() {
+	initialize_gl(1);
+    set_transform( 1, 0, 0 );
+    triangulate();
+        });
+
+
+    function zoomed () {
+        var t = d3.event.transform;
+        set_transform( t.k, t.x, t.y );
+    }
+function gaussianRand() {
+  var rand = 0;
+  for (var i = 0; i < 6; i += 1) {
+    rand += Math.random();
+  }
+  return (rand / 6)-0.5;
+}
+
+
+function isBetween(p,edge){
+	
+	x = p.x;
+	y = p.y;
+	x1 = edge.p1.x;
+	y1 = edge.p1.y;
+	x2 = edge.p2.x;
+	y2 =edge.p2.y;
+    var crossproduct = (y - y1) * (x2 - x1) - (x - x1) * (y2 - y1)
+
+    if (Math.abs(crossproduct) > Number.EPSILON)
+        return false
+
+    var dotproduct = (x - x1) * (x2 - x1) + (y - y1)*(y2 - y1)
+    if (dotproduct < 0)
+        return false
+
+    var squaredlengthba = (x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1)
+    if (dotproduct > squaredlengthba)
+        return false
+
+    return true
+}
+function createCircle(a,b,c){
+
+    var yDelta_a = b.y - a.y;
+    var xDelta_a = b.x - a.x;
+    var yDelta_b = c.y - b.y;
+    var xDelta_b = c.x - b.x;
+    var center = [];
+
+    var aSlope = yDelta_a/xDelta_a;
+    var bSlope = yDelta_b/xDelta_b;  
+    center[0] = (aSlope*bSlope*(a.y - c.y) + bSlope*(a.x + b.x)
+        - aSlope*(b.x+c.x) )/(2* (bSlope-aSlope) );
+    center[1] = -1*(center[0] - (a.x+b.x)/2)/aSlope +  (a.y+b.y)/2;
+
+    return center;
+  
+}
+function LEGALIZEEDGE(pr, edge, index){
+
+var cent;
+var r;
+	//Find the triangle adjacent with edge		
+	var i3;
+	var adjTriangle = edge.getOtherTriangle(T[index]);
+	if(adjTriangle!=null && adjTriangle.activity==true){
+			//T[i3] is the triangle containing edge
+			var pn = adjTriangle.getFrontPoint(edge)
+				//The triangle is not pr-edge
+				
+				cent = createCircle(pr, edge.p1, edge.p2);
+				r = Math.sqrt((cent[0]-pr.x) * (cent[0]-pr.x) + (cent[1]-pr.y) * (cent[1]-pr.y));
+				if((pn.x - cent[0])*(pn.x - cent[0]) + (pn.y - cent[1])*(pn.y - cent[1]) < r*r){
+					//illegal edge
+					//Delete pr pi pj triangle
+					//Delete pi pn pj triangle
+					console.log(adjTriangle);
+					T[index].activity = false;
+					T[adjTriangle.index].activity = false;
+					//Create pr pi Ti triangle
+					var e1 = T[index].getEdge(pr,edge.p1);
+					var e2 = T[index].getEdge(pr,edge.p2);
+					
+					var e12 = T[adjTriangle.index].getEdge(pn,edge.p1);
+					var e22 = T[adjTriangle.index].getEdge(pn,edge.p2);
+
+					var newE = new Edge(pn,pr);
+
+					var newT1 = new Triangle(e1,e12,newE,pr,pn,edge.p1);
+					var newT2 = new Triangle(e2,e22,newE,pr,pn,edge.p2);
+
+					newE.setT1(newT1);
+					newE.setT2(newT2);
+					e1.setT1(newT1);
+					e1.setT2(e1.getOtherTriangle(T[index]));
+
+					e2.setT1(newT1);
+					e2.setT2(e2.getOtherTriangle(T[index]));
+
+					e12.setT1(newT2);
+					e12.setT2(e12.getOtherTriangle(T[adjTriangle.index]));
+
+					e22.setT1(newT2);
+					e22.setT2(e22.getOtherTriangle(T[adjTriangle.index]));
+
+					t_size+=2;
+					newT1.index=t_size-2;
+					newT2.index=t_size-1;
+
+					newT1.setEdges(e1,e12,newE);
+					newT2.setEdges(e2,e22,newE);
+
+					T.push(newT1);
+					T.push(newT2);
+					LEGALIZEEDGE(pr,e12,t_size-2);
+					LEGALIZEEDGE(pr,e22,t_size-1);
+				}
+		
+	}
+}
+function InsideTriangle(pr,ts){
+ var x = pr.x;
+ var y = pr.y; 
+ var x1 = ts.p1.x;
+ var y1 = ts.p1.y;
+ var x2 = ts.p2.x;
+ var y2 = ts.p2.y;
+ var x3 = ts.p3.x;
+ var y3 = ts.p3.y;
+	var a = ((y2 - y3)*(x - x3) + (x3 - x2)*(y - y3)) / ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3))
+  var b = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3))
+	var c = 1 - a - b
+	
+	if(0 <= a && a <= 1 && 0 <= b && b <= 1 && 0 <= c && c <= 1)
+		return true;
+	else
+		return false;
+}
+  
+  function triangulate(){
+    
+        
+  var p1 = new Point(1.0,1.0);
+  var p2 = new Point(-1.0,1.0);
+  var p3 = new Point(0.0,-1.0);
+  
+  var e1 = new Edge(p1,p2);
+  var e2 = new Edge(p2,p3);
+  var e3 = new Edge(p3,p1);
+  
+  var t1 = new Triangle(e1,e2,e3,p1,p2,p3);
+var t2 = new Triangle(e1,e2,e3,p2,p1,p3);
+  e1.setT1(t1);
+  e2.setT1(t1);
+  e3.setT1(t1);
+
+  t1.setEdges(e1,e2,e3);
+  t1.index=0;
+  T.push(t1);
+
+
+
+  t_size=1;
+  var k;
+  var findex=0;
+  var pr;
+  var con=0;
+  for(k=0; k<n; k+=1){
+  	pr = arr2[k];
+  	//Find a triangle containing pr in T
+  	var s;
+  	var tri_index;
+  	for(s=0; s<t_size; s+=1){
+  		if(T[s].activity==true && InsideTriangle(pr,T[s]))
+  			{
+  			//Triangle has been found
+  			tri_index=s;
+			con = 1;
+			console.log("found");
+			break;
+  			}
+		else{
+			con=0;
+		}
+  	}
+	  if(con==1){
+		T[tri_index].deactivate();
+		var e11 = new Edge(pr, T[tri_index].p1);
+		var e12 = new Edge(pr,T[tri_index].p2);
+		var e13 = new Edge(pr,T[tri_index].p3);
+
+		var ec1 = T[tri_index].getEdge(T[tri_index].p1,T[tri_index].p2);
+		var tt1 = new Triangle(e11, e12, ec1, pr,ec1.p1,ec1.p2);
+
+		var ec2 = T[tri_index].getEdge(T[tri_index].p1,T[tri_index].p3);
+		var tt2 = new Triangle(e11, e13, ec2, pr,ec2.p1,ec2.p2);
+	
+		var ec3 = T[tri_index].getEdge(T[tri_index].p2,T[tri_index].p3);
+		var tt3 = new Triangle(e12, e13, ec3, pr,ec3.p1,ec3.p2);
+console.log("sa");
+
+		e11.setT1(tt1);
+		e11.setT2(tt2);
+
+		e12.setT1(tt1);
+		e12.setT2(tt3);
+
+		e13.setT1(tt2);
+		e13.setT2(tt3);
+		
+		ec1.setT1(ec1.getOtherTriangle(T[tri_index]));
+		ec1.setT2(tt1);
+
+		ec2.setT1(ec2.getOtherTriangle(T[tri_index]));
+		ec2.setT2(tt2);
+
+		ec3.setT1(ec3.getOtherTriangle(T[tri_index]));
+		ec3.setT2(tt3);
+
+		tt1.setEdges(e11, e12, ec1);
+		tt2.setEdges(e11, e13, ec2);
+		tt3.setEdges(e12, e13, ec3);
+		t_size+=3;
+		tt1.index=t_size-3;
+		tt2.index=t_size-2;
+		tt3.index=t_size-1;
+		T.push(tt1);
+		T.push(tt2);
+		T.push(tt3);
+  		
+
+		LEGALIZEEDGE(pr,ec1,t_size-3);
+		LEGALIZEEDGE(pr,ec2,t_size-2);
+		LEGALIZEEDGE(pr,ec3,t_size-1);
+	  }
+  }
+  
+  
+  	setBuffer();
+    set_transform( 1, 0, 0 );
+  }
+
+function setBuffer(){
+	var drawArray = [];
+  var j;
+  for(j=0; j<t_size; j++){
+	if(T[j].activity == true){
+
+		drawArray.push(T[j].p1.x);
+		drawArray.push(T[j].p1.y);
+		drawArray.push(T[j].p1.z);
+		drawArray.push(T[j].p1.w);
+
+		drawArray.push(T[j].p2.x);
+		drawArray.push(T[j].p2.y);
+		drawArray.push(T[j].p2.z);
+		drawArray.push(T[j].p2.w);
+
+		drawArray.push(T[j].p3.x);
+		drawArray.push(T[j].p3.y);
+		drawArray.push(T[j].p3.z);
+		drawArray.push(T[j].p3.w);
+
+		draw_size+=3;
+	}
+	
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+  gl.bufferSubData(gl.ARRAY_BUFFER, n*4*4, new Float32Array(drawArray));
+}
+
+    function initialize_gl (con) {
+		console.log(n);
+        var sb = d3.color('steelblue');
+        gl.clearColor(sb.r / 255, sb.g / 255, sb.b / 255, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+		if(con==0){
+			for (i = 0; i < n; i += 1) {
+        var p = new Point(gaussianRand(),gaussianRand());
+  		arr2.push(p);
+  		arr.push(p.x);
+  		arr.push(p.y);
+  		arr.push(0.0);
+  		arr.push(1.0);
+	}
+		}
+        
+        
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+        
+        gl.bufferData(gl.ARRAY_BUFFER, 2000000, gl.STATIC_DRAW);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(arr));
+        gl.vertexAttribPointer(shader.vertex_attrib, 4, gl.FLOAT, false, 0, 0);
+
+		
+    }
+
+    function set_transform ( k, tx, ty ) {
+
+        var matrix = new Float32Array([
+            k, 0, 0, 0,
+            0, k, 0, 0,
+            0, 0, 1, 0,
+            2*tx/width, -2*ty/height, 0, 1
+        ]);
+
+        gl.uniformMatrix4fv( shader.matrix_uniform, false, matrix );
+        gl.clear( gl.COLOR_BUFFER_BIT );
+        gl.drawArrays( gl.points, 0, n );
+  var h;
+
+  for(h=n; h<n+draw_size; h+=3){
+  	gl.drawArrays( gl.LINE_LOOP, h, 3 );
+  }
+  	
+  
+  
+    }
+
+    function basic_vertex () {
+
+        return [
+            'attribute vec4 vertex_position;',
+            'attribute vec4 vertex_color;',
+            'varying lowp vec4 vert_color;',
+            'uniform mat4 matrix;',
+            'void main( void ) {',
+            '   gl_Position = matrix * vertex_position;',
+            '   vert_color = vertex_color;',
+            'gl_PointSize = 10.0;',
+            '}'
+        ].join('\n');
+
+    }
+
+    function basic_fragment () {
+
+        return [
+            'varying lowp vec4 vert_color;',
+            'void main( void ) {',
+            '   gl_FragColor = vert_color;',
+            '}'
+        ].join('\n');
+
+    }
+
+    function basic_shader ( gl ) {
+
+        var program = gl_program( gl, basic_vertex(), basic_fragment() );
+
+        gl.useProgram( program );
+        program.vertex_attrib = gl.getAttribLocation( program, 'vertex_position' );
+        program.matrix_uniform = gl.getUniformLocation( program, 'matrix' );
+        program.translate_uniform = gl.getUniformLocation( program, 'translate_matrix' );
+        program.scale_uniform = gl.getUniformLocation( program, 'scale_matrix' );
+        gl.enableVertexAttribArray( program.vertex_attrib );
+        gl.enableVertexAttribArray( program.color_attrib );
+
+        return program;
+
+    }
+
+    function gl_shader ( gl, type, code ) {
+
+        var shader = gl.createShader( type );
+        gl.shaderSource( shader, code );
+        gl.compileShader( shader );
+        return shader;
+
+    }
+
+    function gl_program ( gl, vertex_source, fragment_source ) {
+
+        var shader_program = gl.createProgram();
+        var vertex_shader = gl_shader( gl, gl.VERTEX_SHADER, vertex_source );
+        var fragment_shader = gl_shader( gl, gl.FRAGMENT_SHADER, fragment_source );
+
+        if ( shader_program && vertex_shader && fragment_shader ) {
+
+            gl.attachShader( shader_program, vertex_shader );
+            gl.attachShader( shader_program, fragment_shader );
+            gl.linkProgram( shader_program );
+
+            gl.deleteShader( vertex_shader );
+            gl.deleteShader( fragment_shader );
+
+            return shader_program;
+
+        }
+
+    }
+
+</script>
+</body>
